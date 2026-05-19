@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Аналитика — {{ data.college }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>Админ-панель аналитики · {{ data.college }}</h1>
+  <p>Instagram и 2GIS · мониторинг репутации и контент-эффективности</p>
+</header>
+
+<div class="container">
+
+  <div class="kpi-grid">
+    <div class="kpi"><div class="label">Рейтинг 2GIS</div><div class="value">{{ data.avg_rating }}</div><div class="sub">из 5.0 · {{ data.total_reviews }} отзывов</div></div>
+    <div class="kpi"><div class="label">Подписчики IG</div><div class="value">{{ data.instagram.followers }}</div><div class="sub pos">+{{ data.instagram.followers_growth_pct }}% за месяц</div></div>
+    <div class="kpi"><div class="label">Engagement rate</div><div class="value">{{ data.instagram.engagement_rate }}%</div><div class="sub">средний по постам</div></div>
+    <div class="kpi"><div class="label">Охват за 30д</div><div class="value">{{ data.instagram.reach_30d }}</div><div class="sub">{{ data.instagram.posts_total }} публикаций всего</div></div>
+  </div>
+
+  <div class="grid">
+    <div class="card col-8">
+      <h2>Динамика отзывов в 2GIS (за 12 месяцев)</h2>
+      <canvas id="reviewsChart"></canvas>
+    </div>
+    <div class="card col-4">
+      <h2>Распределение рейтингов</h2>
+      <canvas id="ratingChart"></canvas>
+    </div>
+
+    <div class="card col-6">
+      <h2>Положительные отзывы — темы</h2>
+      <canvas id="posChart"></canvas>
+    </div>
+    <div class="card col-6">
+      <h2>Отрицательные отзывы — темы</h2>
+      <canvas id="negChart"></canvas>
+    </div>
+
+    <div class="card col-12">
+      <h2>Сравнение с другими колледжами</h2>
+      <canvas id="compareChart"></canvas>
+    </div>
+
+    <div class="card col-8">
+      <h2>Рост подписчиков Instagram</h2>
+      <canvas id="igChart"></canvas>
+    </div>
+    <div class="card col-4">
+      <h2>Структура контента IG</h2>
+      <canvas id="mixChart"></canvas>
+    </div>
+
+    <div class="card col-12">
+      <h2>Популярные публикации в Instagram</h2>
+      <table>
+        <thead><tr><th>Дата</th><th>Публикация</th><th>Тип</th><th>Лайки</th><th>Комментарии</th><th>Охват</th></tr></thead>
+        <tbody>
+          {% for p in data.top_posts %}
+          <tr>
+            <td>{{ p.date }}</td>
+            <td>{{ p.title }}</td>
+            <td><span class="badge {{ p.type|lower }}">{{ p.type }}</span></td>
+            <td>{{ p.likes }}</td>
+            <td>{{ p.comments }}</td>
+            <td>{{ p.reach }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 style="margin: 32px 0 16px; font-size: 18px;">Выводы и рекомендации по улучшению</h2>
+  <div class="recs">
+    <div class="rec-card">
+      <h3>📷 Instagram</h3>
+      <ul>{% for r in recommendations.instagram %}<li>{{ r }}</li>{% endfor %}</ul>
+    </div>
+    <div class="rec-card">
+      <h3>📍 2GIS</h3>
+      <ul>{% for r in recommendations.twogis %}<li>{{ r }}</li>{% endfor %}</ul>
+    </div>
+    <div class="rec-card">
+      <h3>🎯 Общие</h3>
+      <ul>{% for r in recommendations.general %}<li>{{ r }}</li>{% endfor %}</ul>
+    </div>
+  </div>
+</div>
+
+<script>
+const data = {{ data | tojson }};
+const C = { pos:'#22c55e', neg:'#ef4444', neu:'#f59e0b', accent:'#38bdf8', accent2:'#a78bfa', muted:'#94a3b8' };
+Chart.defaults.color = '#cbd5e1';
+Chart.defaults.borderColor = '#334155';
+
+new Chart(document.getElementById('reviewsChart'), {
+  type:'line',
+  data:{labels:data.months,datasets:[
+    {label:'Положительные',data:data.reviews_dynamics.positive,borderColor:C.pos,backgroundColor:C.pos+'33',tension:.3,fill:true},
+    {label:'Отрицательные',data:data.reviews_dynamics.negative,borderColor:C.neg,backgroundColor:C.neg+'33',tension:.3,fill:true},
+    {label:'Нейтральные',data:data.reviews_dynamics.neutral,borderColor:C.neu,backgroundColor:C.neu+'33',tension:.3,fill:true},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+});
+
+new Chart(document.getElementById('ratingChart'),{
+  type:'doughnut',
+  data:{labels:Object.keys(data.rating_distribution),datasets:[{data:Object.values(data.rating_distribution),backgroundColor:['#22c55e','#84cc16','#f59e0b','#fb923c','#ef4444']}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+});
+
+new Chart(document.getElementById('posChart'),{
+  type:'bar',
+  data:{labels:Object.keys(data.positive_topics),datasets:[{label:'Упоминания',data:Object.values(data.positive_topics),backgroundColor:C.pos}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+});
+
+new Chart(document.getElementById('negChart'),{
+  type:'bar',
+  data:{labels:Object.keys(data.negative_topics),datasets:[{label:'Упоминания',data:Object.values(data.negative_topics),backgroundColor:C.neg}]},
+  options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+});
+
+new Chart(document.getElementById('compareChart'),{
+  type:'bar',
+  data:{labels:data.comparison.map(c=>c.name),datasets:[
+    {label:'Рейтинг 2GIS',data:data.comparison.map(c=>c.rating),backgroundColor:C.accent,yAxisID:'y'},
+    {label:'Engagement IG %',data:data.comparison.map(c=>c.engagement),backgroundColor:C.accent2,yAxisID:'y'},
+    {label:'Кол-во отзывов',data:data.comparison.map(c=>c.reviews),backgroundColor:'#64748b',yAxisID:'y1'},
+  ]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}},
+    scales:{y:{position:'left',title:{display:true,text:'Рейтинг / ER'}},y1:{position:'right',grid:{drawOnChartArea:false},title:{display:true,text:'Отзывы'}}}}
+});
+
+new Chart(document.getElementById('igChart'),{
+  type:'line',
+  data:{labels:data.months,datasets:[{label:'Подписчики',data:data.ig_followers_series,borderColor:C.accent2,backgroundColor:C.accent2+'33',tension:.3,fill:true}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+});
+
+new Chart(document.getElementById('mixChart'),{
+  type:'polarArea',
+  data:{labels:Object.keys(data.content_mix),datasets:[{data:Object.values(data.content_mix),backgroundColor:['#a78bfa','#38bdf8','#fde68a','#f472b6']}]},
+  options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom'}}}
+});
+</script>
+</body>
+</html>
